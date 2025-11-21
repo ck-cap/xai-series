@@ -1,5 +1,6 @@
 # %% Imports
 import matplotlib.pyplot as plt
+import seaborn as sns
 from utils import DataLoader
 
 # %% Load data
@@ -25,3 +26,22 @@ for col in columns:
 data_loader.preprocess_data()
 data_loader.data.head()
 
+# %% 1. Target Balance
+print("--- Target Distribution ---")
+print(data['stroke'].value_counts(normalize=True))
+sns.countplot(x='stroke', data=data)
+plt.show()
+
+# %% 2. Numerical Distributions by Target
+features = ['age', 'avg_glucose_level', 'bmi']
+for f in features:
+    plt.figure(figsize=(6,4))
+    sns.kdeplot(data=data, x=f, hue='stroke', common_norm=False)
+    plt.title(f'Stroke vs No Stroke: {f}')
+    plt.show()
+
+# %% 3. Correlation
+plt.figure(figsize=(8,6))
+sns.heatmap(data.select_dtypes(include='number').corr(), annot=True, cmap='coolwarm')
+plt.title("Correlation Matrix")
+plt.show()
