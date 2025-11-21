@@ -45,3 +45,15 @@ plt.figure(figsize=(8,6))
 sns.heatmap(data.select_dtypes(include='number').corr(), annot=True, cmap='coolwarm')
 plt.title("Correlation Matrix")
 plt.show()
+
+# %% Box Plots for Outlier Detection
+features = ['avg_glucose_level', 'bmi']
+
+plt.figure(figsize=(10, 5))
+for i, col in enumerate(features):
+    plt.subplot(1, 2, i+1)
+    sns.boxplot(y=data[col])
+    plt.title(f'{col} Outliers')
+
+plt.tight_layout()
+plt.show()
