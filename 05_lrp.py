@@ -8,56 +8,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch.optim as optim
 import copy
-import pandas as pd
-import os
+import pandas as pd 
 
-# Set GPU device or fallback to CPU
-print(f"CUDA available: {torch.cuda.is_available()}")
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
-
-# Enable better CUDA error messages
-if torch.cuda.is_available():
-    os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+# Set GPU device
+print(torch.cuda.is_available())
+device = torch.device("cuda:0")
 
 
 # %% Load data
 TRAIN_ROOT = "data/brain_mri/training"
 TEST_ROOT = "data/brain_mri/testing"
-
-# Verify paths exist
-if not os.path.exists(TRAIN_ROOT):
-    raise FileNotFoundError(f"Training path does not exist: {TRAIN_ROOT}")
-if not os.path.exists(TEST_ROOT):
-    raise FileNotFoundError(f"Testing path does not exist: {TEST_ROOT}")
-
 train_dataset = torchvision.datasets.ImageFolder(root=TRAIN_ROOT)
-test_dataset = torchvision.datasets.ImageFolder(root=TEST_ROOT)
-
-# Verify dataset classes
-print(f"\nDataset classes: {train_dataset.classes}")
-print(f"Class to index mapping: {train_dataset.class_to_idx}")
-num_classes = len(train_dataset.classes)
-print(f"Number of classes: {num_classes}")
+test_dataset = torchvision.datasets.ImageFolder(root=TRAIN_ROOT)
 
 
 # %% Building the model
 class CNNModel(nn.Module):
-    def __init__(self, num_classes=4):
+    def __init__(self):
         super(CNNModel, self).__init__()
-        self.vgg16 = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1) 
+        self.vgg16 = models.vgg16(pretrained=True) 
 
         # Replace output layer according to our problem
         in_feats = self.vgg16.classifier[6].in_features 
-        self.vgg16.classifier[6] = nn.Linear(in_feats, num_classes)
+        self.vgg16.classifier[6] = nn.Linear(in_feats, 4)
 
     def forward(self, x):
         x = self.vgg16(x)
         return x
 
-model = CNNModel(num_classes=num_classes)
+model = CNNModel()
 model.to(device)
-print(f"\nModel created with {num_classes} output classes")
 model
 
 # %% Prepare data for pretrained model
@@ -76,9 +56,6 @@ test_dataset = torchvision.datasets.ImageFolder(
                       transforms.ToTensor()
         ])
 )
-
-print(f"\nTraining samples: {len(train_dataset)}")
-print(f"Testing samples: {len(test_dataset)}")
 
 #train_dataset[0][0].permute(1,2,0)
 
@@ -100,40 +77,19 @@ cross_entropy_loss = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.00001)
 epochs = 10
 
-print(f"\nStarting training for {epochs} epochs...")
 # Iterate x epochs over the train data
 for epoch in range(epochs):  
-    print(f"\nEpoch {epoch+1}/{epochs}")
     for i, batch in enumerate(train_loader, 0):
         inputs, labels = batch
         inputs = inputs.to(device)
         labels = labels.to(device)
-        
-        # Debug: Check labels are in valid range
-        if i == 0 and epoch == 0:
-            print(f"First batch - Labels: min={labels.min().item()}, max={labels.max().item()}, dtype={labels.dtype}")
-            print(f"Expected label range: 0 to {num_classes-1}")
-            if labels.max() >= num_classes:
-                raise ValueError(f"Label {labels.max()} is >= num_classes ({num_classes})")
-            if labels.min() < 0:
-                raise ValueError(f"Label {labels.min()} is negative")
-        
         optimizer.zero_grad()
         outputs = model(inputs)
-        
-        # Verify output shape
-        if i == 0 and epoch == 0:
-            print(f"Output shape: {outputs.shape}, expected: (batch_size, {num_classes})")
-        
         # Labels are automatically one-hot-encoded
         loss = cross_entropy_loss(outputs, labels)
         loss.backward()
         optimizer.step()
-        
-        if i % 10 == 0:
-            print(f"  Batch {i}, Loss: {loss.item():.4f}")
-
-print("\nTraining completed!")
+        print(loss)
 
 # %% Inspect predictions for first batch
 import pandas as pd
